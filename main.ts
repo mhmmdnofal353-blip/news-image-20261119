@@ -20,7 +20,7 @@
 //           nearing India, the EU's €45bn loan for Ukraine, and Voyager 1
 //           reaching a full light-day from Earth.
 
-import { copyFileSync, mkdirSync, statSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
@@ -38,4 +38,14 @@ if (written !== held) {
   throw new Error(`copy is incomplete: wrote ${written} of ${held} bytes`);
 }
 
-console.log(`wrote ${target} (${written} bytes)`);
+// Name the format the gate will see, from the first bytes it reads: a JPEG
+// starts FFD8, a PNG 8950. Anything else means the held image is not the
+// front page this program means to deliver, so fail loudly instead.
+const head = readFileSync(target).subarray(0, 2);
+const isJpeg = head[0] === 0xff && head[1] === 0xd8;
+const isPng = head[0] === 0x89 && head[1] === 0x50;
+if (!isJpeg && !isPng) {
+  throw new Error('written file is neither JPEG nor PNG by its first bytes');
+}
+
+console.log(`wrote ${target} (${written} bytes, ${isJpeg ? 'JPEG' : 'PNG'})`);
